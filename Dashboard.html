@@ -1,0 +1,343 @@
+	<!DOCTYPE html>
+<html>
+	<head>
+		<title>Dashboard</title>
+		<meta content="width=device-width, initial-scale=1" name="viewport" />
+		<meta content="height=device-height, initial-scale=1" name="viewport" />
+
+		<style>
+			body{
+				font-family:Tahoma, Arial;
+				background: #E9E2D7;
+				font-weight: bold;
+				font-size:12px;
+			}
+
+			a, a:visited{
+				text-decoration:none;
+				color:#000000;
+			}
+
+			#containerLeft{
+				position: fixed;
+				top:0px;
+				bottom:0px;
+				left:0px;
+				width:40%;
+				display:flex;
+				align-items:center;
+				justify-content: center;
+			}
+
+			#containerRight{
+				position: fixed;
+				top:0px;
+				bottom:0px;
+				left:40%;
+				width:60%;
+				display:flex;
+				align-items:center;
+				justify-content: center;
+			}
+
+			#leftTable, #rightTable{
+				width:100%;
+				height:100%;
+				text-align: center;
+				font-size:2rem;
+				padding:5px;
+				transition: background 2s;
+			}
+
+			#rightTable:hover{
+				background: #dbcfbd;
+			}
+
+			#rowTime{
+				background: #FE6B64;
+			}
+
+			#rowDate{
+				background: #779ECB;
+			}
+
+			#rowWeather{
+				background: #FDFD98;
+			}
+
+			#tempMin, #tempMax{
+				font-size:1rem;
+			}
+
+			#rowCondition{
+				background: #77DD77;
+			}
+
+			#newsItemTitle{
+				font-size:2rem;
+			}
+
+			#newsItemImage{
+				width:100%;
+			}
+
+			#rowImage{
+				width:100%;
+				height:60%;
+			}
+
+			#newsItemDescription{
+				font-size: 1rem;
+			}
+
+			@media screen and (max-width: 540px), (max-height:300px){
+				#containerLeft{
+					width:100%;
+				}
+
+				#containerRight{
+					display:none;
+				}
+			}
+
+			@media screen and (max-height: 550px){
+				#newsItemTitle{
+					font-size:1rem;
+				}
+
+				#newsItemImage{
+					width:60%;
+					height:32%;
+				}	
+
+				
+			}
+
+		</style>
+		<script type="text/javascript">
+
+			window.onload = function(){
+				ServiceDateTime.init();
+				ServiceWeather.init();
+				ServiceNews.init();
+			};
+
+			let ServiceDateTime = function(){
+				const months = [ "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" ];
+				let intervalUpdate;
+
+				let options = {
+					twelvehour : false,
+					updateFrequency : 1000,
+				};
+
+				function init(){
+					update();
+					intervalUpdate = setInterval(update,options.updateFrequency);
+				}
+
+				function update(){
+					let today = new Date();
+						
+					let hours = today.getHours() < 10 ? "0"+today.getHours() : today.getHours();
+					let mins = today.getMinutes() < 10 ? "0"+today.getMinutes() : today.getMinutes();
+					let secs = today.getSeconds() < 10 ? "0"+today.getSeconds() : today.getSeconds();
+
+					let pmam;
+
+					if(options.twelvehour){
+						if(hours > 12){
+							hours = hours - 12;
+							pmam = "PM";
+						}else{
+							pmam = "AM";
+						}
+					}
+
+					time = hours + ":" + mins + ":" + secs;
+					if(options.twelvehour)	time = time + " " + pmam;
+					
+
+					var day = ""+today.getDate();
+
+					if(day.endsWith("1")){
+						day = day + "st";
+					}else if(day.endsWith("2")){
+						day = day + "nd";
+					}else if(day.endsWith("3")){
+						day = day + "rd";
+					}else{
+						day = day + "th";
+					}
+
+					var month = today.getMonth();
+
+					var year = today.getFullYear();
+
+					date = day + " " + months[month] + " " + year;
+
+					document.getElementById("time").innerHTML = time;
+					document.getElementById("date").innerHTML = date;
+				}
+
+				return{
+					init : init,
+				}
+			}();
+
+			let ServiceWeather = function(){
+
+				const apiKey = "";
+				const apiURL = "http://api.openweathermap.org/data/2.5/weather";
+
+				let intervalUpdate;
+				let data = {};
+
+				let options = {
+					location : "2643743",		// Default London, UK
+					updateFrequency : 600000,	// Default every 10 minutes
+				};
+
+				function init(){
+					update();
+					intervalUpdate = setInterval(update,options.updateFrequency);
+				}
+
+				function update(){
+					let requestURL = apiURL+"?id="+options.location+"&appid="+apiKey;
+
+					fetch(requestURL)
+	    				.then((response) =>{
+	    					return response.json();
+	  				}).then((responce) =>{
+	  					data = {};
+	    				data = {
+	    					tempMain : Math.floor(k2c(responce["main"]["temp"])) + "°c",
+	    					tempMin : Math.floor(k2c(responce["main"]["temp_min"])) + "°c",
+	    					tempMax : tempMax = Math.floor(k2c(responce["main"]["temp_max"])) + "°c",
+	    					condition :  responce["weather"][0]["description"].charAt(0).toUpperCase() +  responce["weather"][0]["description"].slice(1),
+	    				};
+	  				
+	    				document.getElementById("temp").innerHTML = data.tempMain;
+						document.getElementById("tempMin").innerHTML = "Lows of "+data.tempMin;
+						document.getElementById("tempMax").innerHTML = "Highs of "+data.tempMax;
+						document.getElementById("cond").innerHTML = data.condition;
+	  				});
+
+	  				
+				}
+
+				function k2c(temp){
+					return temp - 273.15;
+				}
+
+				return{
+					init : init,
+				}
+			}();
+
+			let ServiceNews = function(){
+				
+				const apiKey = "";
+				const apiURL = "https://newsapi.org/v2/top-headlines"
+
+				let current = 0;
+				let data;
+				let intervalUpdate, intervalScroll;
+
+				let options = {
+					sources : "bbc-news",
+					scrollFrequency : 5000,		// Default every 5 seconds 
+					updateFrequency : 600000,	// Default every 10 minutes (144 requests a day) (Total Requests MUST be below 500, as the free option is limited to that!)
+					results : 10,				// Number of results to get from newsapi.org
+				};
+
+				function init(){
+					update();
+					intervalUpdate = setInterval(update,options.updateFrequency);
+					intervalScroll = setInterval(scrollNews,options.scrollFrequency);
+				}
+
+
+				function update(){
+					let requestURL = apiURL+"?sources="+options.sources+"&pageSize="+options.results+"&apiKey="+apiKey;
+					
+					fetch(requestURL).then((response) =>{
+    					return response.json();
+  					}).then((response) => {
+  						data = [];
+	  					for(var a = 0; a < options.results; a++){
+	  						data[a] = {		
+	  							image: 			response["articles"][a]["urlToImage"],
+	  							title: 			response["articles"][a]["title"],
+	  							description: 	response["articles"][a]["description"],
+	  							url: 			response["articles"][a]["url"]
+	  						};
+							
+						}
+
+						scrollNews(); 
+  					});
+				}
+
+				function scrollNews(){
+					current = (current >= options.results-1 ? 0 : current + 1);
+					change(current);
+				}
+
+				function change(id =0){
+					document.getElementById("newsItemImage").src = data[id].image;
+					document.getElementById("newsItemTitle").innerHTML = data[id].title;
+					document.getElementById("newsItemDescription").innerHTML = data[id].description;
+					document.getElementById("newsURL").href = data[id].url;
+				}	
+
+				return{
+					init : init,
+					current : current,
+					options : options,
+					change : change,
+					scroll : scrollNews,
+				}
+			}();
+		</script>
+	</head>
+
+	<body lang="en-gb">
+		<div id="containerLeft">
+			<table id="leftTable">
+				<tr id="rowTime">
+					<td colspan="2"><span id="time"></span></td>
+				</tr>
+
+				<tr id="rowDate">
+					<td colspan="2"><span id="date"></span></td>
+				</tr>
+
+				<tr id="rowWeather">
+					<td colspan="2"><span id="temp"></span></td>
+				</tr>
+
+
+				<tr id="rowWeather">
+					<td><span id="tempMin"></span></td><td><span id="tempMax"></span></td>
+				</tr>
+
+				<tr id="rowCondition">
+					<td colspan="2"><span id="cond"></span></td>
+				</tr>
+
+			</table>
+		</div>
+
+		<a href="" id="newsURL" target="_blank">
+			<div id="containerRight">
+				<table id="rightTable">
+					<tr id="rowTitle"><td><span id="newsItemTitle"></span></td></tr>
+					<tr id="rowImage"><td><img id="newsItemImage" alt="Image for news item"/></td></tr>
+					<tr id="rowDescription"><td><span id="newsItemDescription"></span></td></tr>
+				</table>
+			</div>
+		</a>
+	</body>
+</html>
